@@ -1,5 +1,20 @@
 # Bitnami Object Storage based on MinIO&reg;
 
+## FORK REASON
+Sadly, at the moment of writing, bitnami do not release `arm64` based builds, hence the reason for this fork. 
+
+You can build it your self by running  
+```shell
+export MINIO_VERSION="RELEASE.2022-05-26T05-48-41Z"
+docker buildx build --platform=linux/amd64,linux/arm64 --build-arg MINIO_VERSION=$MINIO_VERSION -t alekcander/bitnami-minio-multiarch:$MINIO_VERSION .
+```
+
+
+Already built images can be found at [docker hub](https://hub.docker.com/r/alekcander/bitnami-minio-multiarch)
+
+**NOTE:** judging by [this issue](https://github.com/minio/minio/issues/12202) and from my own testing, the minio does NOT support running a cluster in multi arch environment, 
+so you need to choose either all `amd64` (in which case you can use original bitnami image tbh) or `arm64`
+
 ## What is Bitnami Object Storage based on MinIO&reg;?
 
 > MinIO&reg; is an object storage server, compatible with Amazon S3 cloud storage service, mainly used for storing unstructured data (such as photos, videos, log files, etc.).

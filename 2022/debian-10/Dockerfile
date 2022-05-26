@@ -1,18 +1,42 @@
+ARG WAIT_FOR_PORT_VERSION=v1.0.3
+ARG GOSU_VERSION=v1.14
+
+FROM alpine as downloader
+ARG TARGETARCH
+ARG WAIT_FOR_PORT_VERSION
+ARG GOSU_VERSION
+
+WORKDIR /src
+RUN apk add curl
+
+# download waitforport
+ADD https://github.com/bitnami/wait-for-port/releases/download/$WAIT_FOR_PORT_VERSION/wait-for-port-linux-$TARGETARCH.tar.gz .
+RUN tar xzvf wait-for-port-linux-$TARGETARCH.tar.gz
+
+#download gosu
+RUN curl https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$TARGETARCH --output gosu
+RUN chmod +x gosu
+
 FROM docker.io/bitnami/minideb:buster
-LABEL maintainer "Bitnami <containers@bitnami.com>"
+LABEL maintainer "Alexander Chernov <alexander@chernov.it>"
+
+ARG TARGETARCH
+ARG WAIT_FOR_PORT_VERSION
+ARG MINIO_VERSION
 
 ENV HOME="/" \
-    OS_ARCH="amd64" \
+    OS_ARCH="$TARGETARCH" \
     OS_FLAVOUR="debian-10" \
     OS_NAME="linux"
 
 COPY prebuildfs /
 # Install required system packages and dependencies
 RUN install_packages acl ca-certificates curl gzip jq libc6 procps tar
-RUN . /opt/bitnami/scripts/libcomponent.sh && component_unpack "wait-for-port" "1.0.3-0" --checksum 0603c8eaf6d24e76563431e36e512da06bfebb3a06ede31b3e84d9879213c162
-RUN . /opt/bitnami/scripts/libcomponent.sh && component_unpack "minio-client" "2022.5.9-0" --checksum 0346116529019234636b2f474f0a0a2f7a5540f9570936ddd8f7202f19ae601e
-RUN . /opt/bitnami/scripts/libcomponent.sh && component_unpack "minio" "2022.5.23-0" --checksum 22fb1ecd134c265505db17a3df096783a37a5f6c9925d6568b6a1bdd7df6db3a
-RUN . /opt/bitnami/scripts/libcomponent.sh && component_unpack "gosu" "1.14.0-7" --checksum d6280b6f647a62bf6edc74dc8e526bfff63ddd8067dcb8540843f47203d9ccf1
+COPY --from=downloader /src/wait-for-port-linux-$TARGETARCH /opt/bitnami/common/bin/wait-for-port
+COPY --from=downloader /src/gosu /opt/bitnami/common/bin/gosu
+
+COPY --from=minio/mc:latest  /bin/mc /opt/bitnami/minio-client/bin/mc
+COPY --from=minio/minio:latest  /opt/bin/minio /opt/bitnami/minio/bin/minio
 RUN apt-get update && apt-get upgrade -y && \
     rm -r /var/lib/apt/lists /var/cache/apt/archives
 RUN chmod g+rwX /opt/bitnami
@@ -20,8 +44,10 @@ RUN chmod g+rwX /opt/bitnami
 COPY rootfs /
 RUN /opt/bitnami/scripts/minio-client/postunpack.sh
 RUN /opt/bitnami/scripts/minio/postunpack.sh
-ENV APP_VERSION="2022.5.23" \
+ENV APP_VERSION="$MINIO_VERSION" \
     BITNAMI_APP_NAME="minio" \
+    WAIT_FOR_PORT_VERSION="$WAIT_FOR_PORT_VERSION" \
+    GOSU_VERSION="$GOSU_VERSION" \
     PATH="/opt/bitnami/common/bin:/opt/bitnami/minio-client/bin:/opt/bitnami/minio/bin:$PATH"
 
 VOLUME [ "/certs", "/data" ]
